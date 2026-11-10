@@ -9,36 +9,37 @@ spec:
     spec:
       securityContext: {runAsUser: 1883, runAsGroup: 1883, fsGroup: 1883}
       initContainers:
-      - name: gen-passwd
-        image: eclipse-mosquitto:2.0.18
-        command: ["sh","-c"]
-        args:
-        - |
-          first=1
-          for f in /secrets/*; do
-            u=$(basename "$f")
-            if [ $first = 1 ]; then mosquitto_passwd -c -b /auth/passwd "$u" "$(cat $f)"; first=0
-            else mosquitto_passwd -b /auth/passwd "$u" "$(cat $f)"; fi
-          done
-        volumeMounts:
-        - {name: secrets, mountPath: /secrets, readOnly: true}
-        - {name: auth, mountPath: /auth}
+        - name: gen-passwd
+          image: eclipse-mosquitto:2.0.18
+          resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {cpu: 100m, memory: 64Mi}}
+          command: ["sh","-c"]
+          args:
+            - |
+              first=1
+              for f in /secrets/*; do
+                u=$(basename "$f")
+                if [ $first = 1 ]; then mosquitto_passwd -c -b /auth/passwd "$u" "$(cat $f)"; first=0
+                else mosquitto_passwd -b /auth/passwd "$u" "$(cat $f)"; fi
+              done
+          volumeMounts:
+            - {name: secrets, mountPath: /secrets, readOnly: true}
+            - {name: auth, mountPath: /auth}
       containers:
-      - name: mosquitto
-        image: eclipse-mosquitto:2.0.18
-        ports: [{containerPort: 1883}]
-        resources:
-          requests: {cpu: 50m, memory: 32Mi}
-          limits: {cpu: 200m, memory: 128Mi}
-        readinessProbe: {tcpSocket: {port: 1883}, periodSeconds: 5}
-        livenessProbe: {tcpSocket: {port: 1883}, initialDelaySeconds: 10, periodSeconds: 10}
-        volumeMounts:
-        - {name: cfg, mountPath: /mosquitto/config}
-        - {name: auth, mountPath: /auth}
+        - name: mosquitto
+          image: eclipse-mosquitto:2.0.18
+          ports: [{containerPort: 1883}, {containerPort: 9001}]
+          resources:
+            requests: {cpu: 50m, memory: 32Mi}
+            limits: {cpu: 200m, memory: 128Mi}
+          readinessProbe: {tcpSocket: {port: 1883}, periodSeconds: 5}
+          livenessProbe: {tcpSocket: {port: 1883}, initialDelaySeconds: 10, periodSeconds: 10}
+          volumeMounts:
+            - {name: cfg, mountPath: /mosquitto/config}
+            - {name: auth, mountPath: /auth}
       volumes:
-      - {name: cfg, configMap: {name: mosquitto-config}}
-      - {name: secrets, secret: {secretName: mqtt-creds}}
-      - {name: auth, emptyDir: {}}
+        - {name: cfg, configMap: {name: mosquitto-config}}
+        - {name: secrets, secret: {secretName: mqtt-creds}}
+        - {name: auth, emptyDir: {}}
 ---
 apiVersion: v1
 kind: Service
@@ -54,3 +55,11 @@ spec:
   type: NodePort
   selector: {app: mosquitto}
   ports: [{port: 1883, targetPort: 1883, nodePort: 31883}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: mosquitto-ws, namespace: kl4}
+spec:
+  type: NodePort
+  selector: {app: mosquitto}
+  ports: [{port: 9001, targetPort: 9001, nodePort: 31901}]
