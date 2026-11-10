@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: mosquitto-config, namespace: kl4}
+data:
+  mosquitto.conf: |
+    listener 1883
+    allow_anonymous false
+    password_file /auth/passwd
+    acl_file /mosquitto/config/acl.conf
+    persistence false
+    log_dest stdout
+    connection_messages true
+  acl.conf: |
+    user monitor
+    topic read edge/#
+    user nodered
+    topic read edge/#
+    user coordinator
+    topic read edge/kl4/+/telemetry
+    topic read edge/kl4/+/status
+    topic write edge/kl4/+/cmd
+    topic write edge/kl4/coordinator/status
+    topic write edge/kl4/coordinator/telemetry
+    user sensor-1
+    topic write edge/kl4/sensor-1/telemetry
+    topic write edge/kl4/sensor-1/status
+    topic read edge/kl4/sensor-1/cmd
+    user sensor-2
+    topic write edge/kl4/sensor-2/telemetry
+    topic write edge/kl4/sensor-2/status
+    topic read edge/kl4/sensor-2/cmd

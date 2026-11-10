@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: sensor-1, namespace: kl4}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: sensor-1}}
+  template:
+    metadata: {labels: {app: sensor-1, part-of: edge-agents}}
+    spec:
+      containers:
+      - name: agent
+        image: edge-agent:1.0
+        imagePullPolicy: IfNotPresent
+        envFrom: [{configMapRef: {name: agent-config}}]
+        env:
+        - {name: AGENT_ID, value: sensor-1}
+        - {name: AGENT_ROLE, value: sensor}
+        - {name: MQTT_USER, value: sensor-1}
+        - name: MQTT_PASS
+          valueFrom: {secretKeyRef: {name: mqtt-creds, key: sensor-1}}
+        ports: [{containerPort: 8080}]
+        resources:
+          requests: {cpu: 50m, memory: 48Mi}
+          limits: {cpu: 200m, memory: 128Mi}
+        livenessProbe: {httpGet: {path: /healthz, port: 8080}, initialDelaySeconds: 10, periodSeconds: 10}
+        readinessProbe: {httpGet: {path: /readyz, port: 8080}, initialDelaySeconds: 3, periodSeconds: 5}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: sensor-2, namespace: kl4}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: sensor-2}}
+  template:
+    metadata: {labels: {app: sensor-2, part-of: edge-agents}}
+    spec:
+      containers:
+      - name: agent
+        image: edge-agent:1.0
+        imagePullPolicy: IfNotPresent
+        envFrom: [{configMapRef: {name: agent-config}}]
+        env:
+        - {name: AGENT_ID, value: sensor-2}
+        - {name: AGENT_ROLE, value: sensor}
+        - {name: MQTT_USER, value: sensor-2}
+        - name: MQTT_PASS
+          valueFrom: {secretKeyRef: {name: mqtt-creds, key: sensor-2}}
+        ports: [{containerPort: 8080}]
+        resources:
+          requests: {cpu: 50m, memory: 48Mi}
+          limits: {cpu: 200m, memory: 128Mi}
+        livenessProbe: {httpGet: {path: /healthz, port: 8080}, initialDelaySeconds: 10, periodSeconds: 10}
+        readinessProbe: {httpGet: {path: /readyz, port: 8080}, initialDelaySeconds: 3, periodSeconds: 5}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: coordinator, namespace: kl4}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: coordinator}}
+  template:
+    metadata: {labels: {app: coordinator, part-of: edge-agents}}
+    spec:
+      containers:
+      - name: agent
+        image: edge-agent:1.0
+        imagePullPolicy: IfNotPresent
+        envFrom: [{configMapRef: {name: agent-config}}]
+        env:
+        - {name: AGENT_ID, value: coordinator}
+        - {name: AGENT_ROLE, value: coordinator}
+        - {name: MQTT_USER, value: coordinator}
+        - name: MQTT_PASS
+          valueFrom: {secretKeyRef: {name: mqtt-creds, key: coordinator}}
+        ports: [{containerPort: 8080}]
+        resources:
+          requests: {cpu: 50m, memory: 48Mi}
+          limits: {cpu: 200m, memory: 128Mi}
+        livenessProbe: {httpGet: {path: /healthz, port: 8080}, initialDelaySeconds: 10, periodSeconds: 10}
+        readinessProbe: {httpGet: {path: /readyz, port: 8080}, initialDelaySeconds: 3, periodSeconds: 5}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: agents-health, namespace: kl4}
+spec:
+  selector: {part-of: edge-agents}
+  ports: [{port: 8080, targetPort: 8080}]

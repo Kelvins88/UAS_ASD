@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-config
+  namespace: kl4
+data:
+  GROUP: "kl4"
+  MQTT_HOST: "mosquitto"
+  MQTT_PORT: "1883"
+  HEARTBEAT_HZ: "1"
+  DEFAULT_RATE_HZ: "0.5"
+  ANOMALY_TEMP_C: "35"
+  ANOMALY_EVERY_S: "60"
+  ANOMALY_DURATION_S: "15"
