@@ -21,6 +21,7 @@ MIN_RATE, MAX_RATE = 0.2, 5.0
 ANOMALY_TEMP = float(os.environ.get("ANOMALY_TEMP_C", "35"))
 ANOMALY_EVERY_S = float(os.environ.get("ANOMALY_EVERY_S", "60"))
 ANOMALY_DURATION_S = float(os.environ.get("ANOMALY_DURATION_S", "15"))
+SUCCESS_WINDOW_S = float(os.environ.get("SUCCESS_WINDOW_S", "3"))
 
 
 def T(agent, kind):
@@ -113,7 +114,8 @@ class Health(BaseHTTPRequestHandler):
 
 def run_sensor():
     global tick
-    state = {"rate": DEFAULT_RATE, "ttl_until": 0.0}
+    state = {"rate": DEFAULT_RATE, "ttl_until": 0.0, "anom": False, "raised": False,
+             "ep_start": 0.0, "delay": None, "ep_total": 0, "ep_ok": 0}
     t0 = time.time()
     offset = zlib.crc32(AGENT_ID.encode()) % 20
 
@@ -136,10 +138,27 @@ def run_sensor():
         temp = 27 + random.gauss(0, 0.4) + (10 if anomaly else 0)
         hum = 60 + random.gauss(0, 1.5)
         # OTONOMI LOKAL: anomali terdeteksi lokal -> naikkan sampling tanpa koordinator
-        if temp > ANOMALY_TEMP and mode == "default":
+        if temp > ANOMALY_TEMP and rate < MAX_RATE / 2:
             rate, mode = MAX_RATE / 2, "local_boost"
+        # LOG PENGUKURAN (stdout, tidak bergantung pada broker)
+        if anomaly and not state["anom"]:
+            start = now - ((now - t0 + offset) % ANOMALY_EVERY_S)
+            state.update(anom=True, raised=False, ep_start=max(start, t0 + 20))
+            log("anomaly_start", episode_start_ts=round(state["ep_start"], 3), temp_c=round(temp, 2))
+        if anomaly and not state["raised"] and rate > DEFAULT_RATE:
+            state["raised"] = True
+            state["delay"] = round(now - state["ep_start"], 2)
+            log("rate_raised", mechanism=mode, rate_hz=rate,
+                delay_s=round(now - state["ep_start"], 2))
+        if not anomaly and state["anom"]:
+            state["anom"] = False
+            state["ep_total"] += 1
+            ok = state["raised"] and state["delay"] is not None and state["delay"] <= SUCCESS_WINDOW_S
+            state["ep_ok"] += int(ok)
+            log("anomaly_end", raised=state["raised"], success=ok)
         publish("telemetry", {"temp_c": round(temp, 2), "hum_pct": round(hum, 2),
-                              "rate_hz": rate, "mode": mode})
+                              "rate_hz": rate, "mode": mode,
+                              "ep_total": state["ep_total"], "ep_ok": state["ep_ok"]})
         next_t += 1.0 / rate
         if next_t < time.time() - 5:
             next_t = time.time()

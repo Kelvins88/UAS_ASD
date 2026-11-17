@@ -9,7 +9,7 @@ spec:
     spec:
       containers:
         - name: agent
-          image: edge-agent:1.0
+          image: edge-agent:1.2
           imagePullPolicy: IfNotPresent
           envFrom: [{configMapRef: {name: agent-config}}]
           env:
@@ -36,7 +36,7 @@ spec:
     spec:
       containers:
         - name: agent
-          image: edge-agent:1.0
+          image: edge-agent:1.2
           imagePullPolicy: IfNotPresent
           envFrom: [{configMapRef: {name: agent-config}}]
           env:
@@ -63,7 +63,7 @@ spec:
     spec:
       containers:
         - name: agent
-          image: edge-agent:1.0
+          image: edge-agent:1.2
           imagePullPolicy: IfNotPresent
           envFrom: [{configMapRef: {name: agent-config}}]
           env:
@@ -90,7 +90,7 @@ spec:
     spec:
       containers:
         - name: agent
-          image: edge-agent:1.0
+          image: edge-agent:1.2
           imagePullPolicy: IfNotPresent
           envFrom: [{configMapRef: {name: agent-config}}]
           env:
